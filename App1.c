@@ -3,11 +3,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#define _CRT_SECURE_NO_WARNINGS
-
-//Funcion encargada de Parsear el texto del csv, se debe ingresar el Num, el  cual es la
-//columna de informacion que se desea extraer
-char NombreArchivo[80];
+#define MAX_LINE 1024
 
 struct Registro {
     int pizza_id;
@@ -16,191 +12,292 @@ struct Registro {
     int quantity;
     char* order_date;
     char* order_time;
-    int unit_price;
-    int total_price;
+    float unit_price;
+    float total_price;
     char* pizza_size;
     char* pizza_category;
     char* pizza_ingredients;
     char* pizza_name;
 };
 
-// Variables globales
-struct Registro *aRegistros; // Crear puntero para almacenar datos
-// Es un arreglo de iRegistros posiciones, cada una del tipo Registro
-int iRegistros;              // Cantidad de registros del archivo
-char *sCabecera;             // Para salvar registro de cabecera
+struct Registro *aRegistros;
+int iRegistros;
 
-// Rutina para contar cantidad de registro de un archivo de texto
+// Contar registros (sin cabecera, ya que esta contiene )
 int CuentaRegistros(char* filename) {
-    int iRegistros = 0;
     FILE *file = fopen(filename, "r");
-    struct stat stStatusFile;  // Para capturar las características del archivo, en particular propiedad st_size
-    stat(filename, &stStatusFile);
-    char *sRegistro = malloc(stStatusFile.st_size);  // Reservar memoria por el tamaño total (peor caso)
-
-    // Se recorre hasta EOF para contar
-    while (fscanf(file, "%[^\n] ", sRegistro) != EOF) {
-        iRegistros++;
-    }
+    if (!file) return 0;
+    int count = 0;
+    char buffer[MAX_LINE];
+    while (fgets(buffer, MAX_LINE, file)) count++;
     fclose(file);
-    iRegistros--; // Se resta uno para no considerar los encabezados
-    return iRegistros;
+    return count - 1;
 }
 
-// Rutina para cargar el archivo en el puntero de estructura Registro
-void CargaRegistros(char* filename, int iRegistros) {
-    aRegistros = (struct Registro*)malloc(iRegistros * sizeof(struct Registro));
-    FILE* file = fopen(filename, "r");
+// Cargar archivo
+void CargaRegistros(char* filename) {
+    FILE *file = fopen(filename, "r");
     if (!file) {
-        printf("No se pudo abrir el archivo");
-        return;
+        printf("Error al abrir el archivo\n");
+        exit(1);
     }
-    struct stat stStatusFile;  // Para capturar las características del archivo, en particular propiedad st_size
-    stat(filename, &stStatusFile);
-    char *sRegistro = malloc(stStatusFile.st_size);  // Reservar memoria por el tamaño total (peor caso)
-    int iPosRegistro = 0;
+    iRegistros = CuentaRegistros(filename);
+    aRegistros = malloc(sizeof(struct Registro) * iRegistros);
 
-    char *token;
+    char buffer[MAX_LINE];
+    fgets(buffer, MAX_LINE, file); // cabecera
 
-    // Salvamos el primer registro de cabecera
-    sCabecera = malloc(stStatusFile.st_size);
-    fgets(sCabecera, stStatusFile.st_size, file);
+    for (int i = 0; i < iRegistros; i++) {
+        fgets(buffer, MAX_LINE, file);
+        buffer[strcspn(buffer, "\n")] = '\0';
+        char *token = strtok(buffer, ",");
 
-    // Se recorre hasta EOF para cargar
-    while (fgets(sRegistro, stStatusFile.st_size, file)) {
-        // Remover el salto de línea si lo hay
-        sRegistro[strcspn(sRegistro, "\n")] = 0;
-
-        // pizza_id
-        token = strtok(sRegistro, ",");
-        if (token) {
-            aRegistros[iPosRegistro].pizza_id = atoi(token);
-        }
-
-        // order_id
-        token = strtok(NULL, ",");
-        if (token) {
-            aRegistros[iPosRegistro].order_id = atoi(token);
-        }
-
-        // pizza_name_id
-        token = strtok(NULL, ",");
-        if (token) {
-            aRegistros[iPosRegistro].pizza_name_id = strdup(token);
-        }
-
-        // quantity
-        token = strtok(NULL, ",");
-        if (token) {
-            aRegistros[iPosRegistro].quantity = atoi(token);
-        }
-
-        // order_date
-        token = strtok(NULL, ",");
-        if (token) {
-            aRegistros[iPosRegistro].order_date = strdup(token);
-        }
-
-        // order_time
-        token = strtok(NULL, ",");
-        if (token) {
-            aRegistros[iPosRegistro].order_time = strdup(token);
-        }
-
-        // unit_price
-        token = strtok(NULL, ",");
-        if (token) {
-            aRegistros[iPosRegistro].unit_price = atoi(token);
-        }
-
-        // total_price
-        token = strtok(NULL, ",");
-        if (token) {
-            aRegistros[iPosRegistro].total_price = atoi(token);
-        }
-
-        // pizza_size
-        token = strtok(NULL, ",");
-        if (token) {
-            aRegistros[iPosRegistro].pizza_size = strdup(token);
-        }
-
-        // pizza_category
-        token = strtok(NULL, ",");
-        if (token) {
-            aRegistros[iPosRegistro].pizza_category = strdup(token);
-        }
-
-        // pizza_ingredients
-        token = strtok(NULL, ",");
-        if (token) {
-            aRegistros[iPosRegistro].pizza_ingredients = strdup(token);
-        }
-
-        // pizza_name
-        token = strtok(NULL, ",");
-        if (token) {
-            aRegistros[iPosRegistro].pizza_name = strdup(token);
-        }
-
-        iPosRegistro++;
+        aRegistros[i].pizza_id = atoi(token);
+        token = strtok(NULL, ","); aRegistros[i].order_id = atoi(token);
+        token = strtok(NULL, ","); aRegistros[i].pizza_name_id = strdup(token);
+        token = strtok(NULL, ","); aRegistros[i].quantity = atoi(token);
+        token = strtok(NULL, ","); aRegistros[i].order_date = strdup(token);
+        token = strtok(NULL, ","); aRegistros[i].order_time = strdup(token);
+        token = strtok(NULL, ","); aRegistros[i].unit_price = atof(token);
+        token = strtok(NULL, ","); aRegistros[i].total_price = atof(token);
+        token = strtok(NULL, ","); aRegistros[i].pizza_size = strdup(token);
+        token = strtok(NULL, ","); aRegistros[i].pizza_category = strdup(token);
+        token = strtok(NULL, ","); aRegistros[i].pizza_ingredients = strdup(token);
+        token = strtok(NULL, ","); aRegistros[i].pizza_name = strdup(token);
     }
     fclose(file);
-    return;
 }
 
-void MostrarDatos() {
-    printf("Reg. 0: cabecera: %s\n", sCabecera);
-    for (int iPosRegistro = 0; iPosRegistro < iRegistros; iPosRegistro++) {
-        printf("Reg. %i: %i | %i | %s | %i | %s | %s | %i | %i | %s | %s | %s | %s|\n",
-            iPosRegistro + 1,
-            aRegistros[iPosRegistro].pizza_id,
-            aRegistros[iPosRegistro].order_id,
-            aRegistros[iPosRegistro].pizza_name_id,
-            aRegistros[iPosRegistro].quantity,
-            aRegistros[iPosRegistro].order_date,
-            aRegistros[iPosRegistro].order_time,
-            aRegistros[iPosRegistro].unit_price,
-            aRegistros[iPosRegistro].total_price,
-            aRegistros[iPosRegistro].pizza_size,
-            aRegistros[iPosRegistro].pizza_category,
-            aRegistros[iPosRegistro].pizza_ingredients,
-            aRegistros[iPosRegistro].pizza_name);
+// Métricas
+char* pms(int *size, struct Registro *orders) {
+    char *resultado = malloc(256);
+    int max = -1;
+    char *pizza = NULL;
+    for (int i = 0; i < *size; i++) {
+        int total = 0;
+        for (int j = 0; j < *size; j++) {
+            if (strcmp(orders[i].pizza_name, orders[j].pizza_name) == 0)
+                total += orders[j].quantity;
+        }
+        if (total > max) {
+            max = total;
+            pizza = orders[i].pizza_name;
+        }
     }
-    return;
+    snprintf(resultado, 256, "Pizza mas vendida: %s (%d ventas)", pizza, max);
+    return resultado;
 }
 
-void orchestrator() {
-    char *filename = NombreArchivo;
-    printf("Debug:Nombre recibido de archivo es: %s\n", filename);
-    iRegistros = CuentaRegistros(filename);
-    printf("Cantidad de registros: %i\n\n", iRegistros);
-    CargaRegistros(filename, iRegistros);
-    MostrarDatos();
-    return;
+char* pls(int *size, struct Registro *orders) {
+    char *resultado = malloc(256);
+    int min = 999999;
+    char *pizza = NULL;
+    for (int i = 0; i < *size; i++) {
+        int total = 0;
+        for (int j = 0; j < *size; j++) {
+            if (strcmp(orders[i].pizza_name, orders[j].pizza_name) == 0)
+                total += orders[j].quantity;
+        }
+        if (total < min) {
+            min = total;
+            pizza = orders[i].pizza_name;
+        }
+    }
+    snprintf(resultado, 256, "Pizza menos vendida: %s (%d ventas)", pizza, min);
+    return resultado;
 }
 
-int main(void) {
-    printf("Ingrese el nombre del archivo CSV: ");
-    fgets(NombreArchivo, sizeof(NombreArchivo), stdin);
-    NombreArchivo[strcspn(NombreArchivo, "\n")] = '\0';
-    orchestrator();
+char* dms(int *size, struct Registro *orders) {
+    char *resultado = malloc(256);
+    float max = -1;
+    char fecha[64] = "";
+    for (int i = 0; i < *size; i++) {
+        float total = 0;
+        for (int j = 0; j < *size; j++) {
+            if (strcmp(orders[i].order_date, orders[j].order_date) == 0)
+                total += orders[j].total_price;
+        }
+        if (total > max) {
+            max = total;
+            strcpy(fecha, orders[i].order_date);
+        }
+    }
+    snprintf(resultado, 256, "Fecha con mas ventas (dinero): %s (%.2f)", fecha, max);
+    return resultado;
+}
+
+char* dls(int *size, struct Registro *orders) {
+    char *resultado = malloc(256);
+    float min = 999999;
+    char fecha[64] = "";
+    for (int i = 0; i < *size; i++) {
+        float total = 0;
+        for (int j = 0; j < *size; j++) {
+            if (strcmp(orders[i].order_date, orders[j].order_date) == 0)
+                total += orders[j].total_price;
+        }
+        if (total < min) {
+            min = total;
+            strcpy(fecha, orders[i].order_date);
+        }
+    }
+    snprintf(resultado, 256, "Fecha con menos ventas (dinero): %s (%.2f)", fecha, min);
+    return resultado;
+}
+
+char* dmsp(int *size, struct Registro *orders) {
+    char *resultado = malloc(256);
+    int max = -1;
+    char fecha[64] = "";
+    for (int i = 0; i < *size; i++) {
+        int total = 0;
+        for (int j = 0; j < *size; j++) {
+            if (strcmp(orders[i].order_date, orders[j].order_date) == 0)
+                total += orders[j].quantity;
+        }
+        if (total > max) {
+            max = total;
+            strcpy(fecha, orders[i].order_date);
+        }
+    }
+    snprintf(resultado, 256, "Fecha con mas ventas (pizzas): %s (%d pizzas)", fecha, max);
+    return resultado;
+}
+
+char* dlsp(int *size, struct Registro *orders) {
+    char *resultado = malloc(256);
+    int min = 999999;
+    char fecha[64] = "";
+    for (int i = 0; i < *size; i++) {
+        int total = 0;
+        for (int j = 0; j < *size; j++) {
+            if (strcmp(orders[i].order_date, orders[j].order_date) == 0)
+                total += orders[j].quantity;
+        }
+        if (total < min) {
+            min = total;
+            strcpy(fecha, orders[i].order_date);
+        }
+    }
+    snprintf(resultado, 256, "Fecha con menos ventas (pizzas): %s (%d pizzas)", fecha, min);
+    return resultado;
+}
+
+char* apo(int *size, struct Registro *orders) {
+    char *resultado = malloc(256);
+    int total_pizzas = 0;
+    int total_ordenes = 0;
+    for (int i = 0; i < *size; i++) total_pizzas += orders[i].quantity;
+    for (int i = 0; i < *size; i++) {
+        int unique = 1;
+        for (int j = 0; j < i; j++) {
+            if (orders[i].order_id == orders[j].order_id) {
+                unique = 0;
+                break;
+            }
+        }
+        if (unique) total_ordenes++;
+    }
+    float promedio = (float)total_pizzas / total_ordenes;
+    snprintf(resultado, 256, "Promedio de pizzas por orden: %.2f", promedio);
+    return resultado;
+}
+
+char* apd(int *size, struct Registro *orders) {
+    char *resultado = malloc(256);
+    int total_pizzas = 0;
+    int total_dias = 0;
+    for (int i = 0; i < *size; i++) total_pizzas += orders[i].quantity;
+    for (int i = 0; i < *size; i++) {
+        int unique = 1;
+        for (int j = 0; j < i; j++) {
+            if (strcmp(orders[i].order_date, orders[j].order_date) == 0) {
+                unique = 0;
+                break;
+            }
+        }
+        if (unique) total_dias++;
+    }
+    float promedio = (float)total_pizzas / total_dias;
+    snprintf(resultado, 256, "Promedio de pizzas por dia: %.2f", promedio);
+    return resultado;
+}
+
+char* ims(int *size, struct Registro *orders) {
+    char *resultado = malloc(256);
+    char *mas_vendido = NULL;
+    int max_count = 0;
+    for (int i = 0; i < *size; i++) {
+        char *ingredientes = strdup(orders[i].pizza_ingredients);
+        char *token = strtok(ingredientes, ",");
+        while (token) {
+            int count = 0;
+            for (int j = 0; j < *size; j++) {
+                if (strstr(orders[j].pizza_ingredients, token))
+                    count += orders[j].quantity;
+            }
+            if (count > max_count) {
+                max_count = count;
+                mas_vendido = token;
+            }
+            token = strtok(NULL, ",");
+        }
+        free(ingredientes);
+    }
+    snprintf(resultado, 256, "Ingrediente mas vendido: %s (%d usos)", mas_vendido, max_count);
+    return resultado;
+}
+
+char* hp(int *size, struct Registro *orders) {
+    char *resultado = malloc(256);
+    char *categoria = NULL;
+    int max = -1;
+    for (int i = 0; i < *size; i++) {
+        int total = 0;
+        for (int j = 0; j < *size; j++) {
+            if (strcmp(orders[i].pizza_category, orders[j].pizza_category) == 0)
+                total += orders[j].quantity;
+        }
+        if (total > max) {
+            max = total;
+            categoria = orders[i].pizza_category;
+        }
+    }
+    snprintf(resultado, 256, "Categoria con mas ventas: %s (%d pizzas)", categoria, max);
+    return resultado;
+}
+
+// Tipos de métrica
+typedef char* (*MetricFunction)(int*, struct Registro*);
+typedef struct {
+    char *nombre;
+    MetricFunction funcion;
+} Metrica;
+
+Metrica metricas[] = {
+    {"pms", pms}, {"pls", pls}, {"dms", dms}, {"dls", dls},
+    {"dmsp", dmsp}, {"dlsp", dlsp}, {"apo", apo}, {"apd", apd},
+    {"ims", ims}, {"hp", hp}
+};
+
+int NUM_METRICAS = sizeof(metricas)/sizeof(Metrica);
+
+// Main
+int main(int argc, char *argv[]) {
+    if (argc < 3) {
+        printf("Uso: %s archivo.csv metrica1 metrica2 ...\n", argv[0]);
+        return 1;
+    }
+    CargaRegistros(argv[1]);
+    for (int i = 2; i < argc; i++) {
+        for (int j = 0; j < NUM_METRICAS; j++) {
+            if (strcmp(argv[i], metricas[j].nombre) == 0) {
+                char *res = metricas[j].funcion(&iRegistros, aRegistros);
+                printf("%s\n", res);
+                free(res);
+                break;
+            }
+        }
+    }
     return 0;
 }
-
-//Commit Javi_V_1
-
-//Funcion main la cual debe tener la funcionaliad de leer el archivo csv
-//Funcion para decidir el valor mas repetido/menos repetido (Pizza mas y
-//menos vendida)
-
-//Funcion para extraer la fecha con mas y menos ganancias junto a la cantidad
-
-//Fechas con mas y menos ventas en terminos de cantidad junto a la cantidad
-
-//Funcion para calcular el promedio de una columna (promedio pizzas por orden y dia)
-
-//Funcion para obtener el mayor valor dentro de una columna (Ingrediente mas vendido)
-
-//Funcion para sumar la cant de pizzas por categoria
-
